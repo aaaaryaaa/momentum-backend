@@ -1,0 +1,6 @@
+# ignore momentum-rn-app folder
+momentum-rn-app/
+
+# ignore all .env files inside any folder
+**/.env
+
