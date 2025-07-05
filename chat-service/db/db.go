@@ -1,3 +1,4 @@
+// chat-service/db/db.go
 package db
 
 import (

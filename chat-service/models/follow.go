@@ -1,4 +1,4 @@
-// models/follow.go
+// chat-service/models/follow.go
 package models
 
 type Follow struct {

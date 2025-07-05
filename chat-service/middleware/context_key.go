@@ -1,4 +1,4 @@
-// context_key.go
+// chat-service/middleware/context_key.go
 package middleware
 
 import "context"

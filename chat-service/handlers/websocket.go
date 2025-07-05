@@ -1,4 +1,4 @@
-// websocket.go
+// chat-service/handlers/websocket.go
 package handlers
 
 import (
@@ -52,50 +52,6 @@ func getRecentMessages(userID int) ([]map[string]interface{}, error) {
 	return messages, nil
 }
 
-// func getMessagesByReadStatus(userID int) (map[string][]map[string]interface{}, error) {
-// 	query := `
-// 		SELECT sender_id, receiver_id, content, created_at, is_read
-// 		FROM messages
-// 		WHERE (sender_id = $1 OR receiver_id = $1)
-// 		ORDER BY created_at ASC
-// 	`
-// 	rows, err := db.DB.Query(query, userID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-
-// 	messages := map[string][]map[string]interface{}{
-// 		"read":   {},
-// 		"unread": {},
-// 	}
-
-// 	for rows.Next() {
-// 		var senderID, receiverID int
-// 		var content string
-// 		var createdAt time.Time
-// 		var isRead bool
-
-// 		if err := rows.Scan(&senderID, &receiverID, &content, &createdAt, &isRead); err != nil {
-// 			return nil, err
-// 		}
-
-// 		msg := map[string]interface{}{
-// 			"sender_id":   senderID,
-// 			"receiver_id": receiverID,
-// 			"content":     content,
-// 			"created_at":  createdAt,
-// 		}
-
-// 		if isRead {
-// 			messages["read"] = append(messages["read"], msg)
-// 		} else {
-// 			messages["unread"] = append(messages["unread"], msg)
-// 		}
-// 	}
-
-//		return messages, nil
-//	}
 func getMessagesByReadStatus(userID int) (map[string][]map[string]interface{}, error) {
 	query := `
 		SELECT sender_id, receiver_id, content, created_at, is_read
@@ -263,111 +219,6 @@ func handleLoadChat(userID, otherID int, before string, conn *websocket.Conn) {
 		log.Println("Failed to mark messages as read after load_chat:", err)
 	}
 }
-
-// var connections = make(map[int]*websocket.Conn) // map[userID] => conn
-
-// func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-// 	user := middleware.GetUserFromContext(r.Context())
-// 	if user == nil {
-// 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-// 		return
-// 	}
-
-// 	conn, err := upgrader.Upgrade(w, r, nil)
-// 	if err != nil {
-// 		http.Error(w, "WebSocket upgrade failed", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer conn.Close()
-
-// 	connections[user.ID] = conn
-// 	defer delete(connections, user.ID)
-
-// 	log.Printf("User %d connected via WebSocket\n", user.ID)
-
-// 	// 🔥 Fetch chat history
-// 	history, err := getMessagesByReadStatus(user.ID)
-// 	if err == nil {
-// 		conn.WriteJSON(map[string]interface{}{
-// 			"type":   "chat_history",
-// 			"read":   history["read"],
-// 			"unread": history["unread"],
-// 		})
-
-// 		// ✅ Mark unread messages as read after sending
-// 		_, err = db.DB.Exec(`
-// 			UPDATE messages
-// 			SET is_read = true
-// 			WHERE receiver_id = $1 AND is_read = false
-// 		`, user.ID)
-// 		if err != nil {
-// 			log.Println("Failed to mark unread messages as read:", err)
-// 		}
-// 	} else {
-// 		log.Println("Failed to fetch chat history:", err)
-// 	}
-
-// 	// 🔁 Handle incoming messages
-// 	for {
-// 		var msg struct {
-// 			ReceiverID int    `json:"receiver_id"`
-// 			Content    string `json:"content"`
-// 		}
-
-// 		err := conn.ReadJSON(&msg)
-// 		if err != nil {
-// 			log.Println("Read error:", err)
-// 			break
-// 		}
-
-// 		// ✅ Check mutual follow relationship
-// 		var mutual bool
-// 		query := `
-// 			SELECT EXISTS (
-// 				SELECT 1 FROM follows f1
-// 				JOIN follows f2 ON f1.follower_id = f2.following_id AND f1.following_id = f2.follower_id
-// 				WHERE f1.follower_id = $1 AND f1.following_id = $2
-// 			)
-// 		`
-// 		err = db.DB.QueryRow(query, user.ID, msg.ReceiverID).Scan(&mutual)
-// 		if err != nil || !mutual {
-// 			conn.WriteJSON(map[string]string{
-// 				"error": "You cannot message users who aren't mutual followers.",
-// 			})
-// 			continue
-// 		}
-
-// 		// ✅ Store message as unread
-// 		_, err = db.DB.Exec(`
-// 			INSERT INTO messages (sender_id, receiver_id, content, is_read)
-// 			VALUES ($1, $2, $3, false)
-// 		`, user.ID, msg.ReceiverID, msg.Content)
-// 		if err != nil {
-// 			conn.WriteJSON(map[string]string{"error": "Failed to save message"})
-// 			continue
-// 		}
-
-// 		// ✅ Deliver live if receiver is online, and mark as read instantly
-// 		if receiverConn, ok := connections[msg.ReceiverID]; ok {
-// 			receiverConn.WriteJSON(map[string]interface{}{
-// 				"type":    "new_message",
-// 				"from":    user.ID,
-// 				"content": msg.Content,
-// 			})
-
-// 			// ✅ Mark this message as read now
-// 			_, err := db.DB.Exec(`
-// 				UPDATE messages
-// 				SET is_read = true
-// 				WHERE sender_id = $1 AND receiver_id = $2 AND content = $3 AND is_read = false
-// 			`, user.ID, msg.ReceiverID, msg.Content)
-
-// 			if err != nil {
-// 				log.Println("Failed to mark message as read:", err)
-// 			}
-// 		}
-// 	}
-// }
 
 var connections = make(map[int]*websocket.Conn) // map[userID] => conn
 

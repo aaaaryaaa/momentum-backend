@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -12,35 +13,67 @@ import (
 	"go-auth/utils"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/lib/pq"
 )
 
 // func Signup(w http.ResponseWriter, r *http.Request) {
 // 	var user models.User
 // 	json.NewDecoder(r.Body).Decode(&user)
 
-//		hashed, _ := utils.HashPassword(user.Password)
-//		err := db.DB.QueryRow("INSERT INTO users(email, password) VALUES($1, $2) RETURNING id", user.Email, hashed).Scan(&user.ID)
-//		if err != nil {
-//			http.Error(w, "User creation failed", http.StatusInternalServerError)
-//			return
-//		}
+// 	hashed, _ := utils.HashPassword(user.Password)
+// 	err := db.DB.QueryRow(
+// 		"INSERT INTO users(name, email, password) VALUES($1, $2, $3) RETURNING id",
+// 		user.Name, user.Email, hashed,
+// 	).Scan(&user.ID)
+
+// 	if err != nil {
+// 		http.Error(w, "User creation failed", http.StatusInternalServerError)
+// 		return
+// 	}
+
 //		json.NewEncoder(w).Encode(user)
 //	}
 func Signup(w http.ResponseWriter, r *http.Request) {
-	var user models.User
-	json.NewDecoder(r.Body).Decode(&user)
+	w.Header().Set("Content-Type", "application/json")
 
-	hashed, _ := utils.HashPassword(user.Password)
-	err := db.DB.QueryRow(
+	var user models.User
+
+	// Decode request body
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, `{"message":"Invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Hash the password
+	hashed, err := utils.HashPassword(user.Password)
+	if err != nil {
+		http.Error(w, `{"message":"Failed to hash password"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Attempt to insert user
+	err = db.DB.QueryRow(
 		"INSERT INTO users(name, email, password) VALUES($1, $2, $3) RETURNING id",
 		user.Name, user.Email, hashed,
 	).Scan(&user.ID)
 
 	if err != nil {
-		http.Error(w, "User creation failed", http.StatusInternalServerError)
+		// ✅ Check for duplicate email (PostgreSQL code 23505)
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" && strings.Contains(pqErr.Message, "email") {
+			http.Error(w, `{"message":"Email already registered"}`, http.StatusConflict)
+			return
+		}
+
+		// ✅ Fallback generic error
+		log.Printf("Signup DB error: %v", err)
+		http.Error(w, `{"message":"User creation failed"}`, http.StatusInternalServerError)
 		return
 	}
 
+	// Clear password before sending back
+	user.Password = ""
+
+	// Send back user info
 	json.NewEncoder(w).Encode(user)
 }
 
