@@ -66,7 +66,7 @@ func main() {
 	if err := db.Init(); err != nil {
 		log.Fatal("Failed to connect to DB:", err)
 	}
-	log.Println("Connected to PostgreSQL")
+	// log.Println("Connected to PostgreSQL")
 
 	// Create router
 	r := mux.NewRouter()

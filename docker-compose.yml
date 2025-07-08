@@ -19,7 +19,7 @@ services:
     build:
       context: ./video-service
     ports:
-      - "8082:8082"
+      - "8084:8084"
     env_file:
       - ./video-service/.env
     depends_on:
