@@ -34,3 +34,14 @@ services:
       - ./chat-service/.env
     depends_on:
       - auth
+
+  post:
+      build:
+        context: ./post-service
+      ports:
+        - "8082:8082"
+      env_file:
+        - ./post-service/.env
+      depends_on:
+        - auth
+        - video
