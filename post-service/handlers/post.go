@@ -274,6 +274,65 @@ func CreatePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Post created"})
 }
 
+// GET /myposts - Return posts made by the logged-in user
+func GetMyPosts(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUserFromContext(r.Context())
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	rows, err := db.DB.Query(`
+		SELECT 
+			p.id, p.user_id, p.video_id, p.video_url, p.caption, p.category, p.thread_id, p.created_at,
+			COALESCE(n.nudges, 0) AS nudges,
+			COALESCE(r.reactions, '{}') AS reactions
+		FROM posts p
+		LEFT JOIN (
+			SELECT post_id, COUNT(*) AS nudges
+			FROM nudges
+			GROUP BY post_id
+		) n ON p.id = n.post_id
+		LEFT JOIN (
+			SELECT post_id, json_object_agg(emoji, count) AS reactions
+			FROM (
+				SELECT post_id, emoji, COUNT(*) AS count
+				FROM reactions
+				GROUP BY post_id, emoji
+			) sub
+			GROUP BY post_id
+		) r ON p.id = r.post_id
+		WHERE p.user_id = $1
+		ORDER BY p.created_at DESC
+	`, user.ID)
+	if err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var posts []models.Post
+	for rows.Next() {
+		var p models.Post
+		var reactionsJSON []byte
+		err := rows.Scan(&p.ID, &p.UserID, &p.VideoID, &p.VideoURL, &p.Caption, &p.Category, &p.ThreadID, &p.CreatedAt, &p.Nudges, &reactionsJSON)
+		if err != nil {
+			continue
+		}
+
+		if len(reactionsJSON) > 0 {
+			json.Unmarshal(reactionsJSON, &p.Reactions)
+		} else {
+			p.Reactions = map[string]int{}
+		}
+
+		posts = append(posts, p)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(posts)
+}
+
 // GET /feed - Return latest posts (paginated)
 func GetFeed(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.DB.Query(`

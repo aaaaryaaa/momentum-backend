@@ -30,6 +30,7 @@ func main() {
 
 	// Protected post routes
 	r.Handle("/posts", middleware.Protected(http.HandlerFunc(handlers.CreatePost))).Methods("POST")
+	r.Handle("/myposts", middleware.Protected(http.HandlerFunc(handlers.GetMyPosts))).Methods("GET")
 	r.Handle("/react", middleware.Protected(http.HandlerFunc(handlers.AddReaction))).Methods("POST")
 	r.Handle("/react", middleware.Protected(http.HandlerFunc(handlers.RemoveReaction))).Methods("DELETE")
 	r.Handle("/nudge", middleware.Protected(http.HandlerFunc(handlers.AddNudge))).Methods("POST")
