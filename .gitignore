@@ -3,3 +3,4 @@
 # ignore all .env files inside any folder
 **/.env
 **/node_modules
+/momentum-rn-app
